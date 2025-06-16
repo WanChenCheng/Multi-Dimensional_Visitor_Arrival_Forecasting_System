@@ -737,7 +737,11 @@ def render_next_page_button():
 if page == "1. 上傳檔案與時間篩選":
     st.markdown("### 步驟 1: 上傳檔案與時間篩選")
 
-    uploaded_file = st.file_uploader("上傳用戶行為歷程資料 (CSV)", type=["csv"])
+    uploaded_file = st.file_uploader(
+    "上傳包含用戶行為歷程資料的 CSV 文件",
+    type=["csv"],
+    help="需包含欄位：user_pseudo_id, event_time, action_group, source, medium, platform, staytime, has_shared, revisit_count"
+        )
 
     if uploaded_file is not None:
         try:
@@ -755,7 +759,7 @@ if page == "1. 上傳檔案與時間篩選":
                 st.stop()
 
             with st.expander("預覽資料"):
-                st.dataframe(user_df.head(), use_container_width=True)
+                st.dataframe(user_df.head(10), use_container_width=True)
 
             user_df['event_time'] = pd.to_datetime(user_df['event_time'])
             min_date = user_df['event_time'].min().date()
@@ -788,7 +792,10 @@ if page == "1. 上傳檔案與時間篩選":
             st.date_input("截止日期", disabled=True)
 
     render_next_page_button()
-
+    
+# =========================
+# 頁面 2: 預測與結果
+# =========================
 
 elif page == "2. 預測與結果":
     st.markdown("### 步驟 2: 執行預測")
@@ -818,11 +825,10 @@ elif page == "2. 預測與結果":
                 else:
                     st.error("預測結果為空，請檢查資料格式")
     else:
-        st.button("開始預測", disabled=True, help="請先完成資料上傳與篩選")
+        st.button("開始預測", disabled=True, help="請先完成前面步驟")
         st.info("請先完成資料上傳與時間篩選後再進行預測")
         
     render_next_page_button()
-
 
 # =========================
 # 頁面 3: 篩選與下載檔案
@@ -834,145 +840,194 @@ elif page == "3. 篩選與下載檔案":
 
     if st.session_state.get("prediction_data") is not None:
         df = st.session_state.prediction_data
+
         col1, col2, col3, col4 = st.columns(4)
         with col1:
             st.metric("總用戶數", len(df))
         with col2:
-            st.metric("平均 Top1 信心", f"{df['Top1_confidence'].mean():.3f}")
+            avg_conf = df['Top1_confidence'].mean()
+            avg_conf = 0 if pd.isna(avg_conf) else avg_conf
+            st.metric("平均 Top1 信心", f"{avg_conf:.3f}")
         with col3:
             rate_online = (df['Online_conversion_prob'] >= 0.3).mean() * 100
-            st.metric("網投機率 ≥0.3 的用戶", f"{(rate_online/100)*len(df):.0f} ({rate_online:.1f}%)")
+            st.metric("網投機率 ≥0.3 的用戶", f"{int((rate_online / 100) * len(df))} ({rate_online:.1f}%)")
         with col4:
             rate_o2o = (df['O2O_reservation_prob'] >= 0.3).mean() * 100
-            st.metric("O2O 機率 ≥0.3 的用戶", f"{(rate_o2o/100)*len(df):.0f} ({rate_o2o:.1f}%)")
+            st.metric("O2O 機率 ≥0.3 的用戶", f"{int((rate_o2o / 100) * len(df))} ({rate_o2o:.1f}%)")
 
         with st.expander("查看完整預測結果", expanded=False):
             st.dataframe(df, use_container_width=True)
     else:
         st.info("完成預測後將在此顯示結果總覽")
 
-    # ==== 步驟 5: 篩選下載條件 ====
+        col1, col2, col3, col4 = st.columns(4)
+        with col1:
+            st.metric("總用戶數", "---")
+        with col2:
+            st.metric("平均 Top1 信心", "---")
+        with col3:
+            st.metric("網投機率 ≥0.3 的用戶", "---")
+        with col4:
+            st.metric("O2O 機率 ≥0.3 的用戶", "---")
+
+    # ==== 步驟 5: 篩選預測結果 ====
     st.markdown("### 步驟 4: 篩選預測結果")
 
     if st.session_state.get("prediction_data") is not None:
         df = st.session_state.prediction_data.copy()
         df["Marketing_Strategy"].fillna("暫無建議，持續觀察", inplace=True)
 
-        # 歷史行為篩選
-        history_steps = st.selectbox("過去幾步內", list(range(1,11)), index=5)
-        hist_actions = set()
-        for i in range(1, history_steps+1):
-            col = "last_action_group" if i==1 else f"-{i}_action_group"
-            if col in df:
-                hist_actions |= set(df[col].dropna())
-        selected_hist = st.multiselect("歷史行為篩選", sorted(hist_actions))
-        if selected_hist:
+        # 1️⃣ 歷史行為篩選
+        st.markdown("**歷史行為篩選**")
+        history_steps = st.selectbox("最近Ｎ步內", options=list(range(1, 11)), index=6)
+        history_columns = [f"-{i}_action_group" for i in range(2, history_steps + 2)]
+        all_history_actions = set()
+        for col in history_columns:
+            if col in df.columns:
+                all_history_actions.update(df[col].dropna().unique())
+        all_history_actions = sorted([x for x in all_history_actions if pd.notna(x)])
+
+        selected_history_actions = st.multiselect(
+            "曾執行以下行為",
+            options=all_history_actions,
+            help="選擇用戶在歷史中曾經執行過的行為"
+        )
+        if selected_history_actions:
             mask = pd.Series(False, index=df.index)
-            for i in range(1, history_steps+1):
-                col = "last_action_group" if i==1 else f"-{i}_action_group"
-                if col in df:
-                    mask |= df[col].isin(selected_hist)
+            for col in history_columns:
+                if col in df.columns:
+                    mask |= df[col].isin(selected_history_actions)
             df = df[mask]
 
-        # 預測行為篩選
-        top_n = st.selectbox("TopN 篩選", [1,2,3,4,5], index=2)
-        pred_actions = set()
-        for i in range(1, top_n+1):
-            col = f"Top{i}_next_action_group"
-            if col in df:
-                pred_actions |= set(df[col].dropna())
-        selected_pred = st.multiselect("預測行為篩選", sorted(pred_actions))
-        if selected_pred:
+        # 2️⃣ 預測行為篩選
+        st.markdown("**預測行為篩選**")
+        top_n = st.selectbox("預測下一步的TopＮ中", options=[1, 2, 3, 4, 5], index=0)
+        prediction_columns = [f"Top{i}_next_action_group" for i in range(1, 6)]
+        all_prediction_actions = set()
+        for col in prediction_columns:
+            if col in df.columns:
+                all_prediction_actions.update(df[col].dropna().unique())
+        all_prediction_actions = sorted([x for x in all_prediction_actions if pd.notna(x)])
+
+        selected_prediction_actions = st.multiselect(
+            "包含以下行為",
+            options=all_prediction_actions,
+            help="選擇預測的下一步行為"
+        )
+        if selected_prediction_actions:
             mask = pd.Series(False, index=df.index)
-            for i in range(1, top_n+1):
+            for i in range(1, top_n + 1):
                 col = f"Top{i}_next_action_group"
-                if col in df:
-                    mask |= df[col].isin(selected_pred)
+                if col in df.columns:
+                    mask |= df[col].isin(selected_prediction_actions)
             df = df[mask]
 
-        # 信心門檻
-        opt = st.radio("信心門檻策略", ["自定義","保守(0.4)","平衡(0.3)","積極(0.2)"], index=2)
-        if opt=="保守(0.4)":
-            min_conf=0.4
-        elif opt=="平衡(0.3)":
-            min_conf=0.3
-        elif opt=="積極(0.2)":
-            min_conf=0.2
-        else:
-            min_conf = st.number_input("自定義信心門檻",0.0,1.0,0.3)
-        df = df[df["Top1_confidence"]>=min_conf]
-
-        # 轉換機率
-        if st.checkbox("啟用轉換機率篩選"):
-            min_online = st.slider("網投機率最低值",0.0,1.0,0.5)
-            min_o2o = st.slider("O2O 機率最低值",0.0,1.0,0.5)
-            df = df[(df["Online_conversion_prob"]>=min_online)|(df["O2O_reservation_prob"]>=min_o2o)]
-
-        # 行銷策略
-        sel_strat = st.multiselect("行銷策略篩選", sorted(df["Marketing_Strategy"].unique()))
-        if sel_strat:
-            df = df[df["Marketing_Strategy"].isin(sel_strat)]
-
-        st.markdown(f"符合條件筆數：{len(df)}")
-
-        # 🔽 欄位選擇
-        st.markdown("**選擇輸出欄位**")
-        col1, col2, col3 = st.columns(3)
-        with col1:
-            if st.button("全選", key="select_all"):
-                st.session_state.selected_columns = st.session_state.all_columns
-        with col2:
-            if st.button("核心欄位", key="select_core"):
-                core_columns = [
-                    'user_pseudo_id', 'Top1_next_action_group', 'Top1_confidence',
-                    'Top2_next_action_group', 'Top2_confidence',
-                    'Top3_next_action_group', 'Top3_confidence',
-                    'Online_conversion_prob', 'O2O_reservation_prob', 'Marketing_Strategy'
-                ]
-                st.session_state.selected_columns = [col for col in core_columns if col in st.session_state.all_columns]
-        with col3:
-            if st.button("預測欄位", key="select_prediction"):
-                prediction_cols = [
-                    'user_pseudo_id', 'Top1_next_action_group', 'Top1_confidence',
-                    'Top2_next_action_group', 'Top2_confidence',
-                    'Top3_next_action_group', 'Top3_confidence',
-                    'Top4_next_action_group', 'Top4_confidence',
-                    'Top5_next_action_group', 'Top5_confidence',
-                    'Online_conversion_prob', 'O2O_reservation_prob'
-                ]
-                st.session_state.selected_columns = [col for col in prediction_cols if col in st.session_state.all_columns]
-
-        # 欄位下拉
-        if 'selected_columns' not in st.session_state:
-            st.session_state.selected_columns = st.session_state.all_columns
-
-        selected_columns = st.multiselect(
-            "選擇要輸出的欄位",
-            options=st.session_state.all_columns,
-            default=st.session_state.selected_columns,
-            key="column_selector"
+        # 3️⃣ 預測信心門檻
+        st.markdown("**預測信心門檻**")
+        confidence_option = st.radio(
+            "選擇信心門檻策略",
+            ["自定義", "保守策略(Top1≥0.4)", "平衡策略(Top1≥0.3)", "積極策略(Top1≥0.2)"],
+            help="根據模型準確度：Top1≈70%, Top3≈85%, Top5≈93%"
         )
 
-        if selected_columns != st.session_state.selected_columns:
-            st.session_state.selected_columns = selected_columns
-            st.rerun()
-
-        # 檔案下載
-        fname = st.text_input("輸出檔名", "result")
-        if not df.empty and selected_columns and fname.strip():
-            csv = df[selected_columns].to_csv(index=False).encode("utf-8-sig")
-            st.download_button("下載結果 CSV", data=csv, file_name=f"{fname}.csv", mime="text/csv", use_container_width=True)
-        elif not selected_columns:
-            st.info("請先選擇輸出欄位")
-        elif not fname.strip():
-            st.info("請輸入檔名")
+        if confidence_option == "保守策略(Top1≥0.4)":
+            min_confidence = 0.4
+            st.info("保守策略：優先選擇高信心預測，降低誤判風險")
+        elif confidence_option == "平衡策略(Top1≥0.3)":
+            min_confidence = 0.3
+            st.info("平衡策略：在準確度和覆蓋率間取得平衡")
+        elif confidence_option == "積極策略(Top1≥0.2)":
+            min_confidence = 0.2
+            st.info("積極策略：最大化觸及用戶數，適合探索性營銷")
         else:
-            st.warning("目前沒有資料符合條件可供下載")
+            min_confidence = st.number_input(
+                "Top1 最低機率",
+                min_value=0.0,
+                max_value=1.0,
+                value=0.3,
+                step=0.01,
+                help="建議值：0.2-0.4 之間，考慮模型準確度平衡"
+            )
+        df = df[df["Top1_confidence"] >= min_confidence]
 
+        # 4️⃣ 轉換機率篩選
+        st.markdown("**轉換機率篩選（任一條件符合即可**")
+        enable_conversion_filter = st.checkbox("啟用轉換機率篩選條件（任一符合）", value=False)
+
+        min_online_conv = 0.0
+        min_o2o_conv = 0.0
+        if enable_conversion_filter:
+            col1, col2 = st.columns(2)
+            with col1:
+                min_online_conv = st.slider("網路投保機率 ≥", 0.0, 1.0, 0.50, 0.01, format="%.2f")
+            with col2:
+                min_o2o_conv = st.slider("O2O 預約機率 ≥", 0.0, 1.0, 0.50, 0.01, format="%.2f")
+
+            df = df[
+                (df["Online_conversion_prob"] >= min_online_conv) |
+                (df["O2O_reservation_prob"] >= min_o2o_conv)
+            ]
+
+        # 5️⃣ 行銷策略篩選
+        st.markdown("**行銷策略篩選**")
+        strategy_options = sorted(df['Marketing_Strategy'].dropna().unique().tolist())
+        selected_strategies = st.multiselect(
+            "行銷策略篩選",
+            options=strategy_options,
+            help="選擇想要匯出的行銷策略對象（可複選）"
+        )
+        if selected_strategies:
+            df = df[df["Marketing_Strategy"].isin(selected_strategies)]
+
+        st.session_state["filtered_prediction_data"] = df
     else:
         st.info("完成預測後即可篩選結果")
-        
+    
     st.session_state["filtered_prediction_data"] = df
+    
+    # ==== 步驟 5: 確認條件並下載 ====
+    st.markdown("### 步驟 5: 確認條件並下載")
+
+    filtered_df = df.copy()
+
+    st.markdown(f"**目前符合條件的用戶數量**：{len(filtered_df)} 人")
+    
+    today_str = datetime.now().strftime("%Y%m%d")
+    default_filename = f"prediction_result_{len(filtered_df)}users_{today_str}"
+    
+    custom_filename = st.text_input(
+        "自訂檔名（選填，系統會自動加上 .csv）",
+        value=default_filename,
+        placeholder="ex: 旅平險_Top3_信心0.3"
+    )
+
+    if len(filtered_df) > 0:
+        if st.button("確認條件並準備下載"):
+            import datetime
+            today_str = datetime.datetime.now().strftime("%Y%m%d")
+            filename = (
+                f"{custom_filename}.csv"
+                if custom_filename else f"prediction_result_{len(filtered_df)}users_{today_str}.csv"
+            )
+
+            export_cols = st.session_state.get("selected_columns", df.columns.tolist())
+            csv = filtered_df[export_cols].to_csv(index=False).encode("utf-8-sig")
+            st.download_button(
+                label="下載結果 CSV",
+                data=csv,
+                file_name=filename,
+                mime="text/csv",
+                use_container_width=True
+            )
+
+            with st.expander("下載內容預覽", expanded=False):
+                st.dataframe(filtered_df[export_cols], use_container_width=True)
+        else:
+            st.warning("目前條件下沒有符合的用戶，請調整條件後再試")
+
+    else:
+        st.info("完成預測後即可篩選並下載結果")
+
     render_next_page_button()
 
 # =========================
@@ -1074,6 +1129,10 @@ elif page == "4. 統計圖表分析":
 
     render_next_page_button()
 
+# py -3.10 --version 
+# Remove-Item -Recurse -Force .venv
+# py -3.10 -m venv .venv
 # cd CathayLifeProject
 # .venv\Scripts\Activate
+# pip install -r requirements.txt
 # streamlit run app.py
