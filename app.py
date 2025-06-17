@@ -951,7 +951,7 @@ elif page == "3. 篩選與下載檔案":
         df = df[df["Top1_confidence"] >= min_confidence]
 
         # 4️⃣ 轉換機率篩選
-        st.markdown("**轉換機率篩選（任一條件符合即可**")
+        st.markdown("**轉換機率篩選（任一條件符合即可)**")
         enable_conversion_filter = st.checkbox("啟用轉換機率篩選條件（任一符合）", value=False)
 
         min_online_conv = 0.0
