@@ -982,6 +982,7 @@ elif page == "3. 篩選與下載檔案":
         st.session_state["filtered_prediction_data"] = df
     else:
         st.info("完成預測後即可篩選結果")
+        df = pd.DataFrame()
     
     st.session_state["filtered_prediction_data"] = df
     
@@ -1022,9 +1023,6 @@ elif page == "3. 篩選與下載檔案":
 
             with st.expander("下載內容預覽", expanded=False):
                 st.dataframe(filtered_df[export_cols], use_container_width=True)
-        else:
-            st.warning("目前條件下沒有符合的用戶，請調整條件後再試")
-
     else:
         st.info("完成預測後即可篩選並下載結果")
 
