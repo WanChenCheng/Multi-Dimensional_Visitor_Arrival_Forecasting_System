@@ -178,7 +178,7 @@ if TF_AVAILABLE:
             st.markdown(f"- {line}")
 else:
     st.error("無法載入模型，請確認 TensorFlow 安裝狀態")
-
+        
 
 # 1. 定義等級映射函式
 def get_level(action_group: str) -> float:
@@ -604,10 +604,10 @@ def predict_from_uploaded_csv(df):
             
             # --- 組裝結果 ---
             result = {
-                # 🔑 基本身份信息
+                # 基本身份信息
                 "user_pseudo_id": user_id,
                 
-                # 🎯 完整Top5預測 (最重要，放在前面)
+                # 完整Top5預測 (最重要，放在前面)
                 "Top1_next_action_group": top5_actions[0],
                 "Top1_confidence": round(float(top5_confs[0]), 4),
                 "Top2_next_action_group": top5_actions[1],
@@ -619,18 +619,18 @@ def predict_from_uploaded_csv(df):
                 "Top5_next_action_group": top5_actions[4],
                 "Top5_confidence": round(float(top5_confs[4]), 4),
                 
-                # 📊 轉換機率和策略
+                # 轉換機率和策略
                 "Online_conversion_prob": round(float(y_pred_online[0][0]), 4),
                 "O2O_reservation_prob": round(float(y_pred_o2o[0][0]), 4),
                 "Marketing_Strategy": strategy,
                 
-                # 📱 當前行為信息
+                # 當前行為信息
                 "last_event_time": raw_last_event_time,
                 "last_platform": raw_last_platform,
                 "last_action": raw_last_action,
                 "last_action_group": raw_last_action_group,
                 
-                # 📚 歷史行為記錄
+                # 歷史行為記錄
                 **prev_records
             }
             
@@ -649,9 +649,9 @@ def predict_from_uploaded_csv(df):
 # 頁面定義與初始化
 # =========================
 pages = [
-    "1. 上傳檔案與時間篩選",
-    "2. 預測與結果",
-    "3. 篩選與下載檔案",
+    "1. 檔案上傳與分析期間篩選",
+    "2. 開始預測",
+    "3. 預測結果篩選與下載",
     "4. 統計圖表分析"
 ]
 
@@ -734,8 +734,8 @@ def render_next_page_button():
 # =========================
 # 頁面 1: 上傳與篩選
 # =========================
-if page == "1. 上傳檔案與時間篩選":
-    st.markdown("### 步驟 1: 上傳檔案與時間篩選")
+if page == "1. 檔案上傳與分析期間篩選":
+    st.markdown("### 步驟 1: 上傳檔案")
 
     uploaded_file = st.file_uploader(
     "上傳包含用戶行為歷程資料的 CSV 文件",
@@ -748,7 +748,7 @@ if page == "1. 上傳檔案與時間篩選":
             user_df = pd.read_csv(uploaded_file)
             st.session_state.raw_uploaded_data = user_df
             st.success(f"上傳成功，共 {len(user_df)} 筆資料")
-
+    
             required_cols = [
                 "user_pseudo_id", "event_time", "action_group", "source",
                 "medium", "platform", "staytime", "has_shared", "revisit_count"
@@ -757,48 +757,62 @@ if page == "1. 上傳檔案與時間篩選":
             if missing_cols:
                 st.error(f"缺少欄位：{', '.join(missing_cols)}")
                 st.stop()
-
+    
             with st.expander("預覽資料"):
                 st.dataframe(user_df.head(10), use_container_width=True)
-
+    
             user_df['event_time'] = pd.to_datetime(user_df['event_time'])
-            min_date = user_df['event_time'].min().date()
-            max_date = user_df['event_time'].max().date()
-
-            col1, col2 = st.columns(2)
-            with col1:
-                start_date = st.date_input("起始日期", value=min_date, min_value=min_date, max_value=max_date)
-            with col2:
-                end_date = st.date_input("截止日期", value=max_date, min_value=min_date, max_value=max_date)
-
-            if start_date > end_date:
-                st.error("起始日期不能大於截止日期")
-                st.session_state.filtered_input_data = None
-            else:
-                filtered_df = user_df[(user_df['event_time'].dt.date >= start_date) & (user_df['event_time'].dt.date <= end_date)]
-                st.session_state.filtered_input_data = filtered_df
-                st.info(f"選定期間內資料: {len(filtered_df)} 筆 ({start_date} ~ {end_date})")
-
+            st.session_state["date_range"] = {
+                "min": user_df['event_time'].min().date(),
+                "max": user_df['event_time'].max().date()
+            }
+    
         except Exception as e:
             st.error(f"上傳錯誤：{e}")
             st.session_state.raw_uploaded_data = None
-
+            st.session_state["date_range"] = None
     else:
-        st.info("請先上傳數據文件")
+        st.session_state["date_range"] = None
+    
+    
+    # === 步驟2: 篩選分析期間 ===
+    st.markdown("### 步驟 2: 篩選分析期間")
+    
+    if st.session_state.get("date_range"):
+        min_date = st.session_state["date_range"]["min"]
+        max_date = st.session_state["date_range"]["max"]
+    
+        col1, col2 = st.columns(2)
+        with col1:
+            start_date = st.date_input("起始日期", value=min_date, min_value=min_date, max_value=max_date)
+        with col2:
+            end_date = st.date_input("截止日期", value=max_date, min_value=min_date, max_value=max_date)
+    
+        if start_date > end_date:
+            st.error("起始日期不能大於截止日期")
+            st.session_state.filtered_input_data = None
+        else:
+            filtered_df = user_df[(user_df['event_time'].dt.date >= start_date) & (user_df['event_time'].dt.date <= end_date)]
+            st.session_state.filtered_input_data = filtered_df
+            st.info(f"選定期間內資料: {len(filtered_df)} 筆 ({start_date} ~ {end_date})")
+    else:
         col1, col2 = st.columns(2)
         with col1:
             st.date_input("起始日期", disabled=True)
         with col2:
             st.date_input("截止日期", disabled=True)
+        st.info("請先上傳資料後才可選擇分析期間")
+
 
     render_next_page_button()
     
+    
 # =========================
-# 頁面 2: 預測與結果
+# 頁面 2: 預測與結果總覽
 # =========================
 
-elif page == "2. 預測與結果":
-    st.markdown("### 步驟 2: 執行預測")
+elif page == "2. 開始預測":
+    st.markdown("### 步驟 3: 執行預測")
 
     prediction_ready = (
         st.session_state.get("raw_uploaded_data") is not None and
@@ -807,13 +821,16 @@ elif page == "2. 預測與結果":
 
     if prediction_ready:
         if st.session_state.get("prediction_data") is not None:
-            st.success("已有預測結果")
-            with st.expander("查看預測結果", expanded=False):
-                st.dataframe(st.session_state.prediction_data.head(), use_container_width=True)
+            st.success("預測結果已生成")
+            
         else:
             if st.button("開始預測", use_container_width=True):
                 with st.spinner("正在進行模型預測，請稍候..."):
-                    df_result = predict_from_uploaded_csv(st.session_state.filtered_input_data)
+                    try:
+                        df_result = predict_from_uploaded_csv(st.session_state.filtered_input_data)
+                    except Exception as e:
+                        st.error(f"模型預測失敗：{e}")
+                        df_result = pd.DataFrame()
 
                 if not df_result.empty:
                     df_result["Marketing_Strategy"] = df_result["Marketing_Strategy"].fillna("暫無建議，持續觀察")
@@ -824,19 +841,13 @@ elif page == "2. 預測與結果":
                         st.dataframe(df_result.head(), use_container_width=True)
                 else:
                     st.error("預測結果為空，請檢查資料格式")
+                    st.session_state.prediction_data = None
     else:
         st.button("開始預測", disabled=True, help="請先完成前面步驟")
-        st.info("請先完成資料上傳與時間篩選後再進行預測")
-        
-    render_next_page_button()
+        st.info("請先完成資料上傳以進行預測")
 
-# =========================
-# 頁面 3: 篩選與下載檔案
-# =========================
-
-elif page == "3. 篩選與下載檔案":
-    # ==== 步驟 4: 預測結果總覽 ====
-    st.markdown("### 步驟 3: 預測結果總覽")
+    # === 預測結果總覽 ===
+    st.markdown("### 步驟 4: 預測結果總覽")
 
     if st.session_state.get("prediction_data") is not None:
         df = st.session_state.prediction_data
@@ -870,12 +881,23 @@ elif page == "3. 篩選與下載檔案":
         with col4:
             st.metric("O2O 機率 ≥0.3 的用戶", "---")
 
-    # ==== 步驟 5: 篩選預測結果 ====
-    st.markdown("### 步驟 4: 篩選預測結果")
+    render_next_page_button()
 
-    if st.session_state.get("prediction_data") is not None:
+# =========================
+# 頁面 3: 篩選與下載
+# =========================
+
+elif page == "3. 預測結果篩選與下載":
+    st.markdown("### 步驟 5: 篩選預測結果")
+
+    if st.session_state.get("prediction_data") is None:
+        st.warning("請先完成預測後再執行篩選與下載")
+    else:
         df = st.session_state.prediction_data.copy()
         df["Marketing_Strategy"].fillna("暫無建議，持續觀察", inplace=True)
+
+        with st.expander("查看完整預測結果", expanded=False):
+            st.dataframe(df, use_container_width=True)
 
         # 1️⃣ 歷史行為篩選
         st.markdown("**歷史行為篩選**")
@@ -951,7 +973,7 @@ elif page == "3. 篩選與下載檔案":
         df = df[df["Top1_confidence"] >= min_confidence]
 
         # 4️⃣ 轉換機率篩選
-        st.markdown("**轉換機率篩選（任一條件符合即可)**")
+        st.markdown("**轉換機率篩選（任一條件符合即可）**")
         enable_conversion_filter = st.checkbox("啟用轉換機率篩選條件（任一符合）", value=False)
 
         min_online_conv = 0.0
@@ -979,54 +1001,120 @@ elif page == "3. 篩選與下載檔案":
         if selected_strategies:
             df = df[df["Marketing_Strategy"].isin(selected_strategies)]
 
+        # 6️⃣ 欄位選擇
+        st.markdown("**選擇輸出欄位**")
+        
+        # 提供快速選項
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            if st.button("全選", key="select_all"):
+                st.session_state.selected_columns = st.session_state.all_columns
+        with col2:
+            if st.button("核心欄位", key="select_core"):
+                # 按業務重要性排序的核心欄位
+                core_columns = [
+                    'user_pseudo_id', 'last_action','last_action_group','last_event_time',
+                    'Top1_next_action_group', 'Top1_confidence',
+                    'Top2_next_action_group', 'Top2_confidence',
+                    'Top3_next_action_group', 'Top3_confidence',
+                    'Online_conversion_prob', 'O2O_reservation_prob', 
+                    'Marketing_Strategy'
+                ]
+                st.session_state.selected_columns = [col for col in core_columns if col in st.session_state.all_columns]
+        with col3:
+            if st.button("預測欄位", key="select_prediction"):
+                prediction_cols = [
+                    'user_pseudo_id',
+                    'Top1_next_action_group', 'Top1_confidence',
+                    'Top2_next_action_group', 'Top2_confidence', 
+                    'Top3_next_action_group', 'Top3_confidence',
+                    'Top4_next_action_group', 'Top4_confidence',
+                    'Top5_next_action_group', 'Top5_confidence',
+                    'Online_conversion_prob', 'O2O_reservation_prob'
+                ]
+                st.session_state.selected_columns = [col for col in prediction_cols if col in st.session_state.all_columns]
+
+        # 欄位多選器
+        if 'selected_columns' not in st.session_state:
+            st.session_state.selected_columns = st.session_state.all_columns
+        
+        selected_columns = st.multiselect(
+            "選擇要輸出的欄位",
+            options=st.session_state.all_columns,
+            default=st.session_state.selected_columns,
+            key="column_selector"
+        )
+        all_columns = st.session_state.get("all_columns", [])
+        
+        # 自動更新選中的欄位
+        if selected_columns != st.session_state.selected_columns:
+            st.session_state.selected_columns = selected_columns
+            st.rerun()
+
         st.session_state["filtered_prediction_data"] = df
-    else:
-        st.info("完成預測後即可篩選結果")
-        df = pd.DataFrame()
-    
-    st.session_state["filtered_prediction_data"] = df
-    
-    # ==== 步驟 5: 確認條件並下載 ====
-    st.markdown("### 步驟 5: 確認條件並下載")
 
-    filtered_df = df.copy()
+        # ==== 步驟 6: 確認條件並下載 ====
+        st.markdown("### 步驟 6: 確認條件並下載")
 
-    st.markdown(f"**目前符合條件的用戶數量**：{len(filtered_df)} 人")
-    
-    today_str = datetime.now().strftime("%Y%m%d")
-    default_filename = f"prediction_result_{len(filtered_df)}users_{today_str}"
-    
-    custom_filename = st.text_input(
-        "自訂檔名（選填，系統會自動加上 .csv）",
-        value=default_filename,
-        placeholder="ex: 旅平險_Top3_信心0.3"
-    )
+        df = st.session_state.prediction_data.copy()
+        filtered_df = st.session_state.get("filtered_prediction_data", df.copy())
+        filter_conditions = []
+        max_history_steps = 10
 
-    if len(filtered_df) > 0:
-        if st.button("確認條件並準備下載"):
-            import datetime
-            today_str = datetime.datetime.now().strftime("%Y%m%d")
-            filename = (
-                f"{custom_filename}.csv"
-                if custom_filename else f"prediction_result_{len(filtered_df)}users_{today_str}.csv"
+        # 條件摘要
+        if selected_history_actions:
+            filter_conditions.append(f"最近 {history_steps} 步內包含： {'、'.join(selected_history_actions)}")
+        if selected_prediction_actions:
+            filter_conditions.append(f"Top{top_n} 中包含： {'、'.join(selected_prediction_actions)}")
+        if min_confidence > 0:
+            filter_conditions.append(f"Top1 信心 ≥ {min_confidence:.2f}")
+        if enable_conversion_filter:
+            filter_conditions.append(
+                f"網投機率 ≥ {min_online_conv:.2f} 或 O2O預約機率 ≥ {min_o2o_conv:.2f}"
             )
+        if selected_strategies:
+            filter_conditions.append(f"行銷策略為： {'、'.join(selected_strategies)}")
+        if selected_columns and len(selected_columns) < len(all_columns):
+            filter_conditions.append(f"輸出欄位數量： {len(selected_columns)} / {len(all_columns)} ")
 
-            export_cols = st.session_state.get("selected_columns", df.columns.tolist())
-            csv = filtered_df[export_cols].to_csv(index=False).encode("utf-8-sig")
-            st.download_button(
-                label="下載結果 CSV",
-                data=csv,
-                file_name=filename,
-                mime="text/csv",
-                use_container_width=True
-            )
+        st.markdown("#### 篩選條件摘要")
+        if filter_conditions:
+            for condition in filter_conditions:
+                st.markdown(f"- {condition}")
+        else:
+            st.markdown("_未設定任何篩選條件_")
 
-            with st.expander("下載內容預覽", expanded=False):
-                st.dataframe(filtered_df[export_cols], use_container_width=True)
-    else:
-        st.info("完成預測後即可篩選並下載結果")
+        st.markdown(f"---\n **目前符合條件的用戶數量**：{len(filtered_df)} 人")
 
+        today_str = datetime.now().strftime("%Y%m%d")
+        default_filename = f"prediction_result_{len(filtered_df)}users_{today_str}"
+        custom_filename = st.text_input(
+            " 自訂檔名（選填，系統會自動加上 .csv）",
+            value=default_filename,
+            placeholder="ex: 旅平險_Top3_信心0.3"
+        )
+
+        if len(filtered_df) > 0:
+            if st.button(" 確認條件並準備下載"):
+                filename = f"{custom_filename}.csv"
+                export_cols = st.session_state.get("selected_columns", filtered_df.columns.tolist())
+                csv = filtered_df[export_cols].to_csv(index=False).encode("utf-8-sig")
+                st.download_button(
+                    label=" 下載結果 CSV",
+                    data=csv,
+                    file_name=filename,
+                    mime="text/csv",
+                    key="download_filtered_csv",
+                    use_container_width=True
+                )
+                with st.expander(" 下載內容預覽", expanded=False):
+                    st.dataframe(filtered_df[export_cols], use_container_width=True)
+        else:
+            st.warning("⚠️ 目前條件下沒有符合的用戶，請調整條件後再試")
+
+    
     render_next_page_button()
+
 
 # =========================
 # 頁面 4: 統計圖表分析
