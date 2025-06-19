@@ -1,16 +1,4 @@
----
-title: CathayLifeProject
-emoji: 🚀
-colorFrom: green
-colorTo: green
-sdk: streamlit
-app_port: 8501
-tags:
-- streamlit
-pinned: false
-short_description: Streamlit template space
-license: mit
----
+
 # 國泰人壽用戶行為預測工具
 
 **這是一個基於深度學習的用戶行為預測工具，使用 LSTM 模型預測用戶的下一步行為、網路投保機率以及預約O2O機率，並提供後續行銷建議。**
