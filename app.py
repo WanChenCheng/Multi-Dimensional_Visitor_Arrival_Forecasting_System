@@ -78,7 +78,7 @@ st.markdown(theme_css, unsafe_allow_html=True)
 st.markdown(
     f"""
     <div style="display:flex;align-items:center;margin-bottom:20px;">
-        <h1 style="margin:0;color:#1f3f3e;font-size:2.5rem;">多元訪客進站行為預測工具</h1>
+        <h1 style="margin:0;color:#1f3f3e;font-size:2.5rem;">多元訪客進站行為預測系統</h1>
     </div>
     """,
     unsafe_allow_html=True
