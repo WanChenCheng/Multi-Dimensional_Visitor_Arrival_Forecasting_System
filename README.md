@@ -3,8 +3,26 @@
 
 **這是一個基於深度學習的用戶行為預測工具，使用 LSTM 模型預測用戶的下一步行為。**
 
+-------------------------------
+
 **模型程式碼存放在以下連結**
+
 https://github.com/WanChenCheng/Multi-Dimensional_Visitor_Arrival_Forecasting_System_Main
+
+-------------------------------
+
+## 《 使用方法 》
+
+0. 將此 Github 中的 fake.user.data.csv下載
+1. 點開以下 Streamlit 連結
+2. 上傳fake.user.data.csv
+3. 選擇要給模型讀取並預測的期間
+4. 點擊「開始預測」，開始進行預測分析
+5. 查看預測結果及視覺化圖表
+6. 依據所需條件篩選預測分析結果
+7. 下載預測分析結果
+
+-------------------------------
 
 ## 《 功能特色 》
 - 多輸出預測：行為分組、線上轉換機率、O2O 預約機率
@@ -12,16 +30,6 @@ https://github.com/WanChenCheng/Multi-Dimensional_Visitor_Arrival_Forecasting_Sy
 - CSV 檔案上傳與預測期間篩選
 - 分析結果篩選與下載
 - 行銷策略建議
-  
--------------------------------
-
-## 《 使用方法 》
-1. 上傳包含用戶行為資料的 CSV 檔案
-2. 選擇要給模型讀取並預測的期間
-3. 點擊「開始預測」，開始進行預測分析
-4. 查看預測結果及視覺化圖表
-5. 依據所需條件篩選預測分析結果
-6. 下載預測分析結果
 
 -------------------------------
 
@@ -167,5 +175,6 @@ https://github.com/WanChenCheng/Multi-Dimensional_Visitor_Arrival_Forecasting_Sy
 - 所有機率預測值均為模型基於歷史數據計算得出
 
 </details>
+
 
 
