@@ -2,7 +2,7 @@ import streamlit as st
 
 # Important: st.set_page_config must come before other Streamlit commands
 st.set_page_config(
-    page_title="國泰人壽 - 用戶行為預測工具", 
+    page_title="多元訪客進站預測系統", 
     layout="wide", 
     initial_sidebar_state="collapsed"
 )
@@ -14,15 +14,6 @@ import base64
 from datetime import datetime, timedelta
 import plotly.express as px
 import plotly.graph_objects as go
-
-# Function to load image as Base64
-@st.cache_data
-def get_base64_image(path: str) -> str:
-    with open(path, "rb") as img_file:
-        return base64.b64encode(img_file.read()).decode()
-
-# Load and embed logo
-img_base64 = get_base64_image("logo.png")
 
 # Custom CSS
 theme_css = """
