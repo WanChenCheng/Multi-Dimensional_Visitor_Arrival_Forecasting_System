@@ -3,6 +3,9 @@
 
 **這是一個基於深度學習的用戶行為預測工具，使用 LSTM 模型預測用戶的下一步行為。**
 
+**模型程式碼存放在以下連結**
+https://github.com/WanChenCheng/Multi-Dimensional_Visitor_Arrival_Forecasting_System_Main
+
 ## 《 功能特色 》
 - 多輸出預測：行為分組、線上轉換機率、O2O 預約機率
 - 互動式資料視覺化
@@ -164,3 +167,4 @@
 - 所有機率預測值均為模型基於歷史數據計算得出
 
 </details>
+
