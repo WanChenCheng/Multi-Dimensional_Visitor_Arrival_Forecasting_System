@@ -13,14 +13,16 @@ https://github.com/WanChenCheng/Multi-Dimensional_Visitor_Arrival_Forecasting_Sy
 
 ## 《 使用方法 》
 
-0. 將此 Github 中的 fake.user.data.csv下載
-1. 點開以下 Streamlit 連結
-2. 上傳fake.user.data.csv
+0. 將此 Github 中的 fake.user.data.csv 下載其中幾個使用
+1. 點開以下 Streamlit 連結 https://multi-dimensionalvisitorarrivalforecastingsystemapp-3q2zk5zwop.streamlit.app/
+2. 上傳 fake.user.data.csv
 3. 選擇要給模型讀取並預測的期間
 4. 點擊「開始預測」，開始進行預測分析
 5. 查看預測結果及視覺化圖表
 6. 依據所需條件篩選預測分析結果
 7. 下載預測分析結果
+
+小提醒：此資料並非真實資料，是為了跑app隨機生成的，用戶行為步數等特徵皆未和真實數據的EDA結果相符
 
 -------------------------------
 
@@ -175,6 +177,7 @@ https://github.com/WanChenCheng/Multi-Dimensional_Visitor_Arrival_Forecasting_Sy
 - 所有機率預測值均為模型基於歷史數據計算得出
 
 </details>
+
 
 
 
